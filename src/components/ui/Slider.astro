@@ -1,0 +1,125 @@
+---
+interface Props {
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  id: string;
+}
+
+const { min, max, step, value, id } = Astro.props;
+const percentage = ((value - min) / (max - min)) * 100;
+---
+
+<div
+  class="slider-container h-1 bg-gray-600 rounded-full relative cursor-pointer"
+  data-min={min}
+  data-max={max}
+  data-step={step}
+  data-value={value}
+  id={id}
+>
+  <div class="absolute top-0 left-0 h-full bg-[#4caf50] rounded-full slider-track" style={`width: ${percentage}%`} />
+  <div
+    class="absolute top-1/2 h-4 w-4 bg-white rounded-full shadow-md transform -translate-y-1/2 cursor-grab slider-thumb"
+    style={`left: calc(${percentage}% - 8px)`}
+  />
+</div>
+
+<script>
+  class SliderComponent {
+    container: HTMLElement;
+    track: HTMLElement | null;
+    thumb: HTMLElement | null;
+    min: number;
+    max: number;
+    step: number;
+    value: number;
+    isDragging: boolean;
+    
+    constructor(container: HTMLElement) {
+      this.container = container;
+      this.track = container.querySelector('.slider-track');
+      this.thumb = container.querySelector('.slider-thumb');
+      this.min = Number(container.dataset.min || 0);
+      this.max = Number(container.dataset.max || 100);
+      this.step = Number(container.dataset.step || 1);
+      this.value = Number(container.dataset.value || this.min);
+      this.isDragging = false;
+      
+      this.init();
+    }
+    
+    init() {
+      this.container.addEventListener('mousedown', this.handleMouseDown.bind(this));
+      window.addEventListener('mousemove', this.handleMouseMove.bind(this));
+      window.addEventListener('mouseup', this.handleMouseUp.bind(this));
+      this.container.addEventListener('click', this.handleClick.bind(this));
+    }
+    
+    updateValue(clientX: number) {
+      const rect = this.container.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const percentage = Math.min(Math.max(x / rect.width, 0), 1);
+      this.value = Math.round((percentage * (this.max - this.min) + this.min) / this.step) * this.step;
+      
+      this.updateUI();
+      this.dispatchChange();
+    }
+    
+    updateUI() {
+      const percentage = ((this.value - this.min) / (this.max - this.min)) * 100;
+      if (this.track) this.track.style.width = `${percentage}%`;
+      if (this.thumb) this.thumb.style.left = `calc(${percentage}% - 8px)`;
+    }
+    
+    dispatchChange() {
+      const event = new CustomEvent('slider-change', { 
+        detail: { value: this.value },
+        bubbles: true 
+      });
+      this.container.dispatchEvent(event);
+    }
+    
+    handleMouseDown(e: MouseEvent) {
+      if (e.target === this.thumb) {
+        this.isDragging = true;
+      }
+    }
+    
+    handleMouseMove(e: MouseEvent) {
+      if (!this.isDragging) return;
+      this.updateValue(e.clientX);
+    }
+    
+    handleMouseUp() {
+      this.isDragging = false;
+    }
+    
+    handleClick(e: MouseEvent) {
+      if (e.target === this.thumb) return;
+      this.updateValue(e.clientX);
+    }
+  }
+
+  // Инициализация всех слайдеров на странице
+  document.querySelectorAll('.slider-container').forEach(container => {
+    new SliderComponent(container as HTMLElement);
+  });
+</script>
+
+<style>
+  .slider-container {
+    touch-action: none;
+    user-select: none;
+  }
+  
+  .slider-thumb {
+    transition: transform 0.1s;
+  }
+  
+  .slider-thumb:active {
+    transform: translateY(-50%) scale(1.2);
+    cursor: grabbing;
+  }
+</style>
